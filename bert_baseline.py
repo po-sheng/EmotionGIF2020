@@ -35,70 +35,7 @@ name = "dev"
 # Set numpy variable
 np.set_printoptions(threshold=sys.maxsize)
 
-# Read data file
-train_data = pd.read_json('train_gold.json', lines=True)
-categories = pd.read_json('categories.json', lines=True)
-test_data = pd.read_json(name + '_unlabeled.json', lines=True)
-
-# Manually split training and testing data
-# train_data, test_data = train_test_split(data, test_size=0.1, random_state=666)
-
-# Part 1
-train_num = len(train_data["idx"])
-
-numOfCat = np.zeros(6)
-catCount = defaultdict(lambda: 0)
-catCoOccurred = defaultdict(lambda: 0)
-
-for order in range(train_num):
-
-  # compute number of samples that have different categories
-  cat_num = len((train_data["categories"].values)[order])
-  numOfCat[cat_num - 1] += 1
-
-  # "catList" each character represents one of the categories. 0 means having this categories in certain doc  
-  catList = ""
-
-  # compute most common pair of categories
-  if len((train_data["categories"].values)[order]) > 1:
-    for idx in range(categories.size):
-      if categories[idx][0] in (train_data["categories"].values)[order]:
-        catList += '1'
-      else:
-        catList += '0'
-    catCoOccurred[catList] += 1
-
-  # compute categories distribution
-  for cat in (train_data["categories"].values)[order]:
-    catCount[cat] += 1
-
-# Part 1 print result
-# print number of sample that have different number of categories
-print("Number of sample with N categories:")
-for num in range(6):
-  print("\t", num+1, "categories :", int(numOfCat[num]))
-print()
-
-# print category distribution
-print("Category distribution:")
-for cat_num in range(len(catCount.keys())):
-  print("\t", list(catCount.keys())[cat_num], ":", list(catCount.values())[cat_num])
-print()
-
-# print top 10 pairs of co-occurring categories
-print("10 most common pairs of co-occurring categories:")
-for idx in range(10):
-  first = 0
-  print("\t [", end='')
-  for cat_num in range(categories.size):
-    if list(catCoOccurred.keys())[idx][cat_num] == '1':
-      if first == 1:
-        print(", ", end='')
-      print(categories[cat_num][0], end='')
-      first = 1
-  print("] :", list(catCoOccurred.values())[idx])
-
-# Write the answer json file
+# Write the answer json file (test data + "categories" key)
 def write_json(dataset, ans):
   dataset_ret = ""
 
@@ -119,10 +56,17 @@ def write_json(dataset, ans):
   with open(name + '.json', 'w') as fp:
     fp.write(dataset_ret)
 
-# Part 2 first model (majority prediction)
+# Read data file
+train_data = pd.read_json('train_gold.json', lines=True)
+categories = pd.read_json('categories.json', lines=True)
+test_data = pd.read_json(name + '_unlabeled.json', lines=True)
+
+# Manually split training and testing data
+# train_data, test_data = train_test_split(data, test_size=0.1, random_state=666)
+
 dataset = {}
 
-# convert pandas to dictionary
+# Convert pandas to dictionary
 for key in test_data.columns:
   data_list = []
   for data_num in range(len(test_data[key])):
@@ -132,7 +76,7 @@ for key in test_data.columns:
 
   dataset[key] = data_list[0] if len(data_list) == 1 else data_list
 
-# add new key-value of "categories" to dict
+# Add new key-value of "categories" to dict
 cats = []
 for doc_num in range(len(test_data["idx"])):
   cat = []
@@ -142,10 +86,7 @@ for doc_num in range(len(test_data["idx"])):
 
 write_json(dataset, cats)
 
-# download file from google colab to localhost
-# files.download(name + '.json')
-
-# data augmentation by take every category of training data inro account
+# Data augmentation by take every category of training data inro account
 frame = {}                   # new pandas dataframe for augmentation data
 N = 0                                 # Counter for each data row
 for doc_num in range(len(train_data)):
@@ -156,53 +97,30 @@ for doc_num in range(len(train_data)):
 train_data_aug = pd.DataFrame(frame)
 train_data_aug = train_data_aug.T
 
-# Part 2 second model Naive Bayes
-# vectorizer = TfidfVectorizer() # using default parameters
-# reply_vectorizer = TfidfVectorizer() # using default parameters
-# vectorizer.fit(train_data_aug['text'])
-# reply_vectorizer.fit(train_data_aug['reply'])
-# train_X = vectorizer.transform(train_data_aug['text'])
-# test_X = vectorizer.transform(test_data['text'])
-# train_reply_X = reply_vectorizer.transform(train_data_aug['reply'])
-# test_reply_X = reply_vectorizer.transform(test_data['reply'])
-
-# train_X.shape, test_X.shape
-
-# duplicate the data belongs to multiple categories
+# Duplicate the data belongs to multiple categories
 train_y = [categories[0]  for categories in train_data_aug['categories'].to_list()]
-# test_y = [categories[0]  for categories in test_data['categories'].to_list()]
 
-len(train_y)
-
-# pred_y = OneVsRestClassifier(SVC(kernel='RBF')).fit(train_X, train_data["categories"])
-
-# pred_reply_y = OneVsRestClassifier(SVC(kernel='RBF')).fit(train_reply_X, train_data["categories"])
-
-
-# model = MultinomialNB()
-# reply_model = MultinomialNB()
-# model.fit(train_X.toarray(),train_y)
-# reply_model.fit(train_reply_X.toarray(), train_y)
-# pred_y = model.predict_proba(test_X.toarray())
-# pred_reply_y = reply_model.predict_proba(test_reply_X.toarray())
-
+# Build model
 model = BertClassifier()
 reply_model = BertClassifier()
 
-# model options
+# Model options set
 model.bert_model = 'bert-base-cased'
 reply_model.bert_model = 'bert-base-cased'
 
+# Model fine-tuned
 model.fit(train_data_aug["text"],train_y)
 reply_model.fit(train_data_aug["reply"], train_y)
+
+# Prediction
 pred_y = model.predict_proba(test_data["text"])
 pred_reply_y = reply_model.predict_proba(test_data["reply"])
 
+# Combine "text" and "reply" domain information
 ratio = 0.4
 y = np.array(pred_y)*(1 - ratio) + np.array(pred_reply_y)*ratio
 
-
-# find the 6 maximize probability categories
+# Find the 6 maximize probability categories
 top_six = []
 for doc_prob in y:
   index_sort = np.argsort(-np.array(doc_prob)) 
@@ -224,11 +142,6 @@ for key in test_data.columns:
 
   dataset[key] = data_list[0] if len(data_list) == 1 else data_list
 
+# write json file
 write_json(dataset, top_six)
 
-# download file from google colab to localhost
-# files.download(name + '.json')
-
-# pred_y = [doc_cats[0] for doc_cats in top_six]
-# print(accuracy_score(test_y, pred_y))
-# print(classification_report(test_y, pred_y, digits=3))
