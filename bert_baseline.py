@@ -13,10 +13,9 @@ Original file is located at
 # !git clone -b master https://github.com/charles9n/bert-sklearn
 # !pip install ./bert-sklearn
 
-
 import pandas as pd
 import numpy as np
-from bert_sklearn import BertClassifier
+from bert_sklearn import BertClassifier, load_model 
 from sklearn.multiclass import OneVsRestClassifier
 from sklearn.svm import SVC
 from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer, TfidfVectorizer
@@ -28,6 +27,13 @@ from collections import Counter, defaultdict
 import json
 import sys
 import requests
+
+# Bert model
+bert_model = "bert-base-cased"
+
+# Model file path
+textmodel = "dataset/text_model.bin"
+replymodel = "dataset/reply_model.bin"
 
 # Phrase
 name = "dev"
@@ -57,34 +63,12 @@ def write_json(dataset, ans):
     fp.write(dataset_ret)
 
 # Read data file
-train_data = pd.read_json('train_gold.json', lines=True)
-categories = pd.read_json('categories.json', lines=True)
-test_data = pd.read_json(name + '_unlabeled.json', lines=True)
+train_data = pd.read_json('dataset/train_gold.json', lines=True)
+categories = pd.read_json('dataset/categories.json', lines=True)
+test_data = pd.read_json('dataset/' + name + '_unlabeled.json', lines=True)
 
 # Manually split training and testing data
 # train_data, test_data = train_test_split(data, test_size=0.1, random_state=666)
-
-dataset = {}
-
-# Convert pandas to dictionary
-for key in test_data.columns:
-  data_list = []
-  for data_num in range(len(test_data[key])):
-    data_list.append(list(test_data[key].values)[data_num])
-    if isinstance(data_list[-1], np.int64):
-      data_list[-1] = int(data_list[-1])
-
-  dataset[key] = data_list[0] if len(data_list) == 1 else data_list
-
-# Add new key-value of "categories" to dict
-cats = []
-for doc_num in range(len(test_data["idx"])):
-  cat = []
-  for idx in range(6):
-    cat.append(list(catCount.keys())[idx])
-  cats.append(cat)
-
-write_json(dataset, cats)
 
 # Data augmentation by take every category of training data inro account
 frame = {}                   # new pandas dataframe for augmentation data
@@ -105,19 +89,27 @@ model = BertClassifier()
 reply_model = BertClassifier()
 
 # Model options set
-model.bert_model = 'bert-base-cased'
-reply_model.bert_model = 'bert-base-cased'
+model.bert_model = bert_model
+reply_model.bert_model = bert_model
 
 # Model fine-tuned
 model.fit(train_data_aug["text"],train_y)
 reply_model.fit(train_data_aug["reply"], train_y)
+
+# Save model
+model.save(textmodel)
+reply_model.save(replymodel)
+
+# Load model
+# model = load_model('textmodel')
+# reply_model = load_model('replymodel')
 
 # Prediction
 pred_y = model.predict_proba(test_data["text"])
 pred_reply_y = reply_model.predict_proba(test_data["reply"])
 
 # Combine "text" and "reply" domain information
-ratio = 0.4
+ratio = 0.5
 y = np.array(pred_y)*(1 - ratio) + np.array(pred_reply_y)*ratio
 
 # Find the 6 maximize probability categories
