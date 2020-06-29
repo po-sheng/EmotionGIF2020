@@ -155,6 +155,7 @@ BertClassifier()
 06/09/2020 01:51:33 - INFO - bert_sklearn.model.pytorch_pretrained.modeling -   Weights from pretrained model not used in BertPlusMLP: ['cls.predictions.bias', 'cls.predictions.transform.dense.weight', 'cls.predictions.transform.dense.bias', 'cls.predictions.decoder.weight', 'cls.seq_relationship.weight', 'cls.seq_relationship.bias', 'cls.predictions.transform.LayerNorm.weight', 'cls.predictions.transform.LayerNorm.bias']
 06/09/2020 01:51:33 - INFO - root -   train data size: 41549, validation data size: 4616
 06/09/2020 01:51:33 - INFO - root -   Number of train optimization steps is : 3897
+<<<<<<< HEAD
 06/09/2020 01:56:45 - INFO - root -   Loading model:
 BertClassifier()
 06/09/2020 01:56:45 - INFO - root -   Loading model:
@@ -776,3 +777,5 @@ BertClassifier(bert_config_json={'architectures': ['BertForMaskedLM'],
        'slow_clap', 'smh', 'sorry', 'thank_you', 'thumbs_down',
        'thumbs_up', 'want', 'win', 'wink', 'yawn', 'yes', 'yolo',
        'you_got_this'], dtype='<U12'))
+=======
+>>>>>>> 137f699a7eca960477434a41a4ef66a92dac58b3

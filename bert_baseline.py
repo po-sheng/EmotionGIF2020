@@ -119,6 +119,14 @@ model = load_model(textModel)
 reply_model = load_model(replyModel)
 # mix_model = load_model(mixModel)
 
+# Save model
+model.save(textmodel)
+reply_model.save(replymodel)
+
+# Load model
+# model = load_model('textmodel')
+# reply_model = load_model('replymodel')
+
 # Prediction
 pred_y = model.predict_proba(test_data["text"])
 pred_reply_y = reply_model.predict_proba(test_data["reply"])
